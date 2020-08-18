@@ -158,26 +158,133 @@ namespace Bootstrap.Controllers
             return ret;
         }
 
+
         [HttpPost]
-        public ActionResult UploadFiles(string directoryPath)
+        public ActionResult UploadFilesTempStorage(string directoryPath)
         {
             try
             {
-                string path = directoryPath;
+                var tempFilesDirPath = Server.MapPath(@"~\" + "TempUploadFiles");
+                if (Directory.Exists(tempFilesDirPath))
+                {
+                    Directory.Delete(tempFilesDirPath, true);
+                }
+                Directory.CreateDirectory(tempFilesDirPath);
+
+                //string path = directoryPath;
                 HttpFileCollectionBase files = Request.Files;
                 for (int i = 0; i < files.Count; i++)
                 {
                     HttpPostedFileBase file = files[i];
-
-                    var fileNameSave = Path.Combine(path, file.FileName);
+                    var fileNameSave = Path.Combine(tempFilesDirPath, file.FileName);
                     file.SaveAs(fileNameSave);
                 }
-                return Json(new { isSuccess = true ,successMessage = files.Count + " Files Uploaded!", directoryPath = directoryPath });
+
+                return Json(new { isSuccess = true, successMessage = files.Count + " Files Uploaded!", directoryPath = directoryPath });
             }
             catch (Exception ex)
             {
                 return Json(new { isSuccess = false, successMessage = "Something went wrong. Please try again later!", directoryPath = directoryPath });
             }
+        }
+
+
+        [HttpPost]
+        public ActionResult UploadFiles(string directoryPath, List<string> files)
+        {
+            try
+            {
+                string path = directoryPath;
+                //HttpFileCollectionBase files = Request.Files;
+                //for (int i = 0; i < files.Count; i++)
+                //{
+                //    HttpPostedFileBase file = files[i];
+
+                //    var fileNameSave = Path.Combine(path, file.FileName);
+                //    file.SaveAs(fileNameSave);
+                //}
+                //string[] filePaths = Directory.GetFiles("Your Path");
+
+                foreach (var filename in files)
+                {
+                    string file = filename.Replace("TempUploadFiles\\","").ToString();
+
+                    //Do your job with "file"  
+                    var tempFilesDirPath = Server.MapPath(@"~\" + "TempUploadFiles");
+                    var srcPath = Path.Combine(tempFilesDirPath, file);
+                    var fileNameSave = Path.Combine(path, file);
+
+                    if (!System.IO.File.Exists(fileNameSave))
+                    {
+                        System.IO.File.Copy(srcPath, fileNameSave);
+                    }
+                }
+                return Json(new { isSuccess = true ,successMessage = "Files uploaded successfully!", directoryPath = directoryPath });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { isSuccess = false, successMessage = "Something went wrong. Please try again later!", directoryPath = directoryPath });
+            }
+        }
+
+
+        [HttpPost]
+        public ActionResult UploadedFilesGrid(string directoryPath)
+        {
+            var directory = Server.MapPath(@"~\" + directoryPath);
+            var dirInfo = new DirectoryInfo(directory);
+            var fileView = new List<FileViewModal>();
+            var files = dirInfo.GetFiles();
+
+            foreach (var file in files)
+            {
+                var fv = new FileViewModal();
+                fv.FileName = file.Name;
+                fv.FileType = file.Extension;
+                fv.LastUpdated = file.LastAccessTime;
+                fv.ActualSize = file.Length;
+                fv.Path = file.FullName;
+                string[] filePaths = file.FullName.Split(new[] { AppDomain.CurrentDomain.BaseDirectory }, StringSplitOptions.None);
+
+                fv.ServerPath = filePaths[1];
+                fileView.Add(fv);
+            }
+
+            return PartialView(fileView);
+        }
+
+
+        [HttpPost]
+        public ActionResult DeleteTempFileFolder(string directoryPath)
+        {
+            var tempFilesDirPath = Server.MapPath(@"~\" + directoryPath);
+            if (Directory.Exists(tempFilesDirPath))
+            {
+                Directory.Delete(tempFilesDirPath, true);
+            }
+            return Json(new { isSuccess = true, successMessage = "", directoryPath = directoryPath });
+        }
+
+        [HttpPost]
+        public bool DeleteTempFiles(List<string> files)
+        {
+            try
+            {
+                foreach (var file in files)
+                {
+                    var filePath =  Path.Combine(Server.MapPath(@"~\") + file);
+                    if (System.IO.File.Exists(filePath))
+                    {
+                        System.IO.File.Delete(filePath);
+                    }
+                }
+                return true;
+            }
+            catch (Exception e)
+            {
+                //Debug.WriteLine(e.Message);
+            }
+            return false;
         }
     }
 }

@@ -84,13 +84,23 @@
                     <div class="form-group">
                         <input type="file" id="fileInput" multiple />
                     </div>
-                    <div class="form-group">
-                        <div id="rename_box">
-                            <button id="save_uploadFiles" type="button" class="btn btn-primary">Upload Files</button>
-                            <button id="close_uploadFiles" type="button" class="btn btn-primary">Close</button>
-                        </div>
-                    </div>
+                    @*<div class="form-group">
+                            <div id="rename_box">
+                                <button id="save_tempuploadFiles" type="button" class="btn btn-primary ">Upload Files</button>
+                            </div>
+                        </div>*@
                 </form>
+                <div class="clearfix"></div>
+
+                <div class="form-group">
+                    <div id="rename_box">
+                        <button id="save_uploadFiles" type="button" class="btn btn-primary">Upload Files</button>
+                        <button id="delete_uploadFiles" type="button" class="btn btn-primary">Delete Files</button>
+                        <button id="close_uploadFiles" type="button" class="btn btn-primary">Close</button>
+                    </div>
+                </div>
+                <div class="clearfix"></div>
+                <div id="divTempFilesGrid"></div>
             </div>
         </div>
     </div>
@@ -175,6 +185,7 @@
             debugger;
             var modal = $(this)
             modal.find('.modal-body span').text(currentDirPath);
+            $("#divTempFilesGrid").html('');
             $("#fileInput").val(null);
         })
 
@@ -370,7 +381,43 @@
 
 
         $(document).ready(function () {
-            $("#save_uploadFiles").click(function () {
+
+            $("#fileInput").change(function () {
+                debugger;
+                uploadFilesLocalDirectory();
+            });
+
+            function uploadFilesLocalDirectory() {
+                var files = $("#fileInput").get(0).files;
+                var fileData = new FormData();
+
+                if (files.length <= 0) {
+                    alert("Please select file(s).");
+                    return;
+                }
+                for (var i = 0; i < files.length; i++) {
+                    fileData.append("fileInput", files[i]);
+                }
+                fileData.append("directoryPath", currentDirPath);
+
+                $.ajax({
+                    type: "POST",
+                    url: "/TreeView/UploadFilesTempStorage",
+                    dataType: "json",
+                    contentType: false, // Not to set any content header
+                    processData: false, // Not to process data
+                    data: fileData,
+                    success: function (result, status, xhr) {
+                        getTempFiles();
+                    },
+                    error: function (xhr, status, error) {
+                        alert(status);
+                    }
+                });
+            }
+
+
+            $("#save_tempuploadFiles").click(function () {
                 debugger;
                 var files = $("#fileInput").get(0).files;
                 var fileData = new FormData();
@@ -384,34 +431,157 @@
                 }
                 fileData.append("directoryPath", currentDirPath);
 
-
-
                 $.ajax({
                     type: "POST",
-                    url: "/TreeView/UploadFiles",
+                    url: "/TreeView/UploadFilesTempStorage",
                     dataType: "json",
                     contentType: false, // Not to set any content header
                     processData: false, // Not to process data
                     data: fileData,
                     success: function (result, status, xhr) {
 
-                        if (result.successMessage) {
-                            alert(result.successMessage);
-                        }
-                        if (result.directoryPath) {
-                            getFiles(result.directoryPath);
-                        }
-                        $("#fileInput").val(null);
-                        $("#uploadModal .close").click();
+
+                        debugger;
+
+                        getTempFiles();
+
+                        //if (result.successMessage) {
+                        //    alert(result.successMessage);
+                        //}
+                        //if (result.directoryPath) {
+                        //    getFiles(result.directoryPath);
+                        //}
+                        //$("#fileInput").val(null);
+                        //$("#uploadModal .close").click();
 
                     },
                     error: function (xhr, status, error) {
-                        $("#fileInput").val(null);
-                        $("#uploadModal .close").click();
+                        //$("#fileInput").val(null);
+                        //$("#uploadModal .close").click();
                         alert(status);
                     }
                 });
             });
+            
+
+            $("#save_uploadFiles").click(function () {
+                debugger;
+                var fileIds = new Array();
+                $("#tbl_Tempfiles").find('.chkCheckBoxId').each(function () {
+                    if ($(this).is(':checked')) {
+                        debugger;
+                        fileIds.push($(this).val());
+                    }
+                });
+
+                if (fileIds.length <= 0) {
+                    alert("Please select file(s).");
+                    return false;
+                } else {
+
+                    debugger;
+                    $.ajax({
+                        type: "POST",
+                        url: "/TreeView/UploadFiles",
+                        dataType: "json",
+                        data: {
+                            directoryPath: currentDirPath,
+                            files: fileIds
+                        },
+                        success: function (result, status, xhr) {
+                            if (result.successMessage) {
+                                alert(result.successMessage);
+                            }
+                            if (result.directoryPath) {
+                                getFiles(result.directoryPath);
+                            }
+                            $("#fileInput").val(null);
+                            $("#uploadModal .close").click();
+
+                        },
+                        error: function (xhr, status, error) {
+                            //$("#fileInput").val(null);
+                            //$("#uploadModal .close").click();
+                            alert(status);
+                        }
+                    });
+                }
+            });
+
+
+
+            $("#delete_uploadFiles").click(function () {
+                debugger;
+                var fileIds = new Array();
+                $("#tbl_Tempfiles").find('.chkCheckBoxId').each(function () {
+                    if ($(this).is(':checked')) {
+                        debugger;
+                        fileIds.push($(this).val());
+                    }
+                });
+
+                if (fileIds.length <= 0) {
+                    alert("Please select file(s).");
+                    return false;
+                } else {
+
+                    debugger;
+                    $.ajax({
+                        url: "/TreeView/DeleteTempFiles",
+                        data: {
+                            files: fileIds,
+                        },
+                        type: "POST",
+                        success: function (result) {
+                            getTempFiles();
+                        },
+                        error: function (jqXHR, exception) {
+                        },
+                    });
+                }
+            });
+
+
+            //$("#save_uploadFiles").click(function () {
+            //    debugger;
+            //    var files = $("#fileInput").get(0).files;
+            //    var fileData = new FormData();
+
+            //    if (files.length <= 0) {
+            //        alert("Please select file(s).");
+            //        return;
+            //    }
+            //    for (var i = 0; i < files.length; i++) {
+            //        fileData.append("fileInput", files[i]);
+            //    }
+            //    fileData.append("directoryPath", currentDirPath);
+            //    $.ajax({
+            //        type: "POST",
+            //        url: "/TreeView/UploadFiles",
+            //        dataType: "json",
+            //        contentType: false, // Not to set any content header
+            //        processData: false, // Not to process data
+            //        data: fileData,
+            //        success: function (result, status, xhr) {
+
+
+            //            if (result.successMessage) {
+            //                alert(result.successMessage);
+            //            }
+            //            if (result.directoryPath) {
+            //                getFiles(result.directoryPath);
+            //            }
+            //            $("#fileInput").val(null);
+            //            $("#uploadModal .close").click();
+
+            //        },
+            //        error: function (xhr, status, error) {
+            //            //$("#fileInput").val(null);
+            //            //$("#uploadModal .close").click();
+            //            alert(status);
+            //        }
+            //    });
+            //});
 
             $(document).ajaxStart(function () {
                 $("#save_uploadFiles").prop('disabled', true);
@@ -421,6 +591,51 @@
                 $("#save_uploadFiles").prop('disabled', false);
                 $("#fileInput").val(null);
             });
+        });
+
+
+        function getTempFiles() {
+            debugger;
+            $.ajax({
+                url: "/TreeView/UploadedFilesGrid",
+                data: { directoryPath: "TempUploadFiles" },
+                type: "POST",
+                success: function (result) {
+                    debugger;
+                    $("#divTempFilesGrid").html(result);
+                },
+                error: function (jqXHR, exception) {
+                },
+            });
+        };
+
+
+        $('#uploadModal').on('hidden.bs.modal', function () {
+            debugger;
+            deleteTempFolder();
+        })
+
+        function deleteTempFolder() {
+            debugger;
+            $.ajax({
+                url: "/TreeView/DeleteTempFileFolder",
+                data: { directoryPath: "TempUploadFiles" },
+                type: "POST",
+                success: function (result) {
+                    debugger;
+                    // $("#divTempFilesGrid").html(result);
+                },
+                error: function (jqXHR, exception) {
+                },
+            });
+        }
+
+
+        $("#close_uploadFiles").click(function (e) {
+            debugger;
+            e.preventDefault();
+
+            $("#uploadModal").find('button.close').click();
         });
 
     </script>
